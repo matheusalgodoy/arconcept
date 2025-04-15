@@ -1,0 +1,102 @@
+
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.cdnfonts.com/css/engram');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 240 10% 43.5%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 43.5%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 43.5%;
+
+    --primary: 9 85% 78%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 240 3% 51%;
+    --secondary-foreground: 0 0% 100%;
+
+    --muted: 240 5% 96%;
+    --muted-foreground: 240 3.7% 46.1%;
+
+    --accent: 240 5% 96%;
+    --accent-foreground: 240 10% 43.5%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 240 5% 88%;
+    --input: 240 5% 88%;
+    --ring: 9 85% 78%;
+
+    --radius: 0.5rem;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-grey-light text-grey-elegant font-engram;
+    font-feature-settings: "ss01", "ss02";
+    font-weight: 300;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-poppins font-medium tracking-tight;
+  }
+
+  .project-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 2rem;
+  }
+
+  @media (min-width: 768px) {
+    .project-grid {
+      grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+    }
+  }
+}
+
+@layer components {
+  .container-custom {
+    @apply w-full max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8;
+  }
+
+  .nav-link {
+    @apply relative px-2 py-1 text-grey-elegant hover:text-salmon transition-colors duration-300;
+  }
+
+  .nav-link.active {
+    @apply text-salmon;
+  }
+
+  .nav-link.active::after {
+    content: '';
+    @apply absolute bottom-0 left-0 w-full h-[1px] bg-salmon;
+  }
+
+  .section-title {
+    @apply text-3xl sm:text-4xl font-poppins font-medium mb-8 text-grey-elegant;
+  }
+
+  .project-card {
+    @apply overflow-hidden bg-white shadow-sm transition-all duration-500 hover:shadow-md;
+  }
+
+  .project-image {
+    @apply w-full h-64 sm:h-80 object-cover transition-transform duration-500;
+  }
+
+  .project-card:hover .project-image {
+    @apply scale-105;
+  }
+}
