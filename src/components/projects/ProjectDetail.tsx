@@ -1,19 +1,7 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, Clock, MapPin, Ruler, ChevronLeft, ChevronRight } from 'lucide-react';
-
-// Função para pré-carregar uma imagem
-const preloadImage = (src) => {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => resolve(img);
-    img.onerror = reject;
-    img.src = src;
-  });
-};
-
-// Cache global de imagens
-const imageCache = new Map();
+import OptimizedImage from '../ui/OptimizedImage';
 
 // This would typically come from an API or database
 
@@ -63,7 +51,7 @@ const projectsData = [
     client: 'Private',
     description: 'A serene entrance that blends raw materials with natural greenery and a modern atmosphere of calm.',
     images: [
-      '/images/2.1.png',
+      '/images/2.1.jpg',
       '/images/2.2.jpg',
     ]
   },
@@ -76,8 +64,8 @@ const projectsData = [
     client: 'Private',
     description: "An immersive kitchen bathed in golden light, where premium functionality meets warm, contemporary design.",
     images: [
-      '/images/3.1.png',
-      '/images/3.2.png',
+      '/images/3.1.jpg',
+      '/images/3.2.jpg',
     ]
   },
   {
@@ -89,9 +77,9 @@ const projectsData = [
     client: 'Private',
     description: "A luxurious living space with gallery-style design, where every texture and form is crafted to offer art, relaxation, and sophistication.",
     images: [
-      '/images/4.1.png',
-      '/images/4.2.png',
-      '/images/4.3.png',
+      '/images/4.1.jpg',
+      '/images/4.2.jpg',
+      '/images/4.3.jpg',
     ]
   },
   {
@@ -103,9 +91,9 @@ const projectsData = [
     client: 'Private',
     description: "An elevated and elegant architectural proposal with sculptural presence and modern lines that reflect both light and surroundings.",
     images: [
-      '/images/5.1.png',
-      '/images/5.2.png',
-      '/images/5.3.png',
+      '/images/5.1.jpg',
+      '/images/5.2.jpg',
+      '/images/5.3.jpg',
     ]
   },
 ];
@@ -117,113 +105,48 @@ const ProjectDetail = () => {
   
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isTransitioning, setIsTransitioning] = useState(false);
-  const [imagesLoaded, setImagesLoaded] = useState([]);
-  const [allImagesPreloaded, setAllImagesPreloaded] = useState(false);
-  const [visibleImages, setVisibleImages] = useState({});
-  const timeoutRef = useRef(null);
-  const imageRefs = useRef({});
+  const [imagesLoaded, setImagesLoaded] = useState<number[]>([]);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   
-  // Pré-carregar todas as imagens do projeto imediatamente
-  useEffect(() => {
-    if (!project) return;
-    
-    const cacheKey = `project-${project.id}`;
-    
-    // Verifica se as imagens já estão no cache
-    if (imageCache.has(cacheKey)) {
-      setImagesLoaded(project.images.map((_, index) => index));
-      setAllImagesPreloaded(true);
-      return;
-    }
-    
-    const preloadAllImages = async () => {
-      try {
-        // Preload all images in parallel
-        const preloadPromises = project.images.map((src, index) => 
-          preloadImage(src)
-            .then(img => {
-              // Atualiza imagens carregadas imediatamente
-              setImagesLoaded(prev => [...prev, index].sort());
-              return img;
-            })
-        );
-        
-        const loadedImages = await Promise.all(preloadPromises);
-        
-        // Armazena no cache global
-        imageCache.set(cacheKey, loadedImages);
-        
-        setAllImagesPreloaded(true);
-        
-        // Setup initial visible state for first image
-        setVisibleImages({[currentImageIndex]: true});
-      } catch (error) {
-        console.error('Erro ao pré-carregar imagens:', error);
-      }
-    };
-    
-    preloadAllImages();
-    
-    return () => {
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    };
-  }, [project]);
-
-  // Preparar a próxima imagem antes da transição
-  const prepareNextImage = (nextIndex) => {
-    if (nextIndex !== currentImageIndex) {
-      setVisibleImages(prev => ({
-        ...prev,
-        [nextIndex]: true,  // A próxima imagem já está visível, mas não exibida
-      }));
-    }
-  };
-  
-  // Preparar todas as imagens para navegação rápida
-  useEffect(() => {
-    if (!project || !allImagesPreloaded) return;
-    
-    // Preparar também a próxima e a anterior imagem
-    const nextIndex = currentImageIndex === project.images.length - 1 ? 0 : currentImageIndex + 1;
-    const prevIndex = currentImageIndex === 0 ? project.images.length - 1 : currentImageIndex - 1;
-    
-    prepareNextImage(nextIndex);
-    prepareNextImage(prevIndex);
-  }, [currentImageIndex, allImagesPreloaded, project]);
-
-  const changeImage = (newIndex) => {
-    if (isTransitioning || !allImagesPreloaded) return;
+  // Função simplificada para mudar a imagem
+  const changeImage = (newIndex: number) => {
+    if (isTransitioning) return;
     
     setIsTransitioning(true);
+    setCurrentImageIndex(newIndex);
     
-    // Primeiro, garanta que a próxima imagem esteja pronta
-    prepareNextImage(newIndex);
-    
-    // Curto atraso para garantir que o React renderize a imagem oculta
-    setTimeout(() => {
-      setCurrentImageIndex(newIndex);
-      
-      timeoutRef.current = setTimeout(() => {
-        setIsTransitioning(false);
-      }, 200); // Transição ainda mais rápida
-    }, 50);
+    timeoutRef.current = setTimeout(() => {
+      setIsTransitioning(false);
+    }, 300);
   };
 
   const nextImage = () => {
+    if (!project) return;
     const newIndex = currentImageIndex === project.images.length - 1 ? 0 : currentImageIndex + 1;
     changeImage(newIndex);
   };
 
   const prevImage = () => {
+    if (!project) return;
     const newIndex = currentImageIndex === 0 ? project.images.length - 1 : currentImageIndex - 1;
     changeImage(newIndex);
   };
 
-  const goToImage = (index) => {
+  const goToImage = (index: number) => {
     changeImage(index);
   };
 
-  const isImageLoaded = (index) => imagesLoaded.includes(index);
+  // Limpar timeouts quando o componente é desmontado
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
+  }, []);
+
+  // Quando uma imagem é carregada, registrar no estado
+  const handleImageLoaded = (index: number) => {
+    setImagesLoaded(prev => Array.from(new Set([...prev, index])));
+  };
 
   if (!project) {
     return (
@@ -263,32 +186,24 @@ const ProjectDetail = () => {
           </div>
         </div>
         
-        <div className="relative mb-4 bg-white overflow-hidden" style={{ minHeight: '400px' }}>
-          {/* Loader até que todas as imagens estejam pré-carregadas */}
-          {!allImagesPreloaded && (
-            <div className="w-full h-full bg-gray-100 animate-pulse flex items-center justify-center" style={{ minHeight: '400px' }}>
-              <p className="text-gray-400">Carregando galeria...</p>
-            </div>
-          )}
-          
-          {/* Renderiza todas as imagens, mas mantém apenas as necessárias visíveis */}
-          {project.images.map((src, index) => (
-            <img 
-              key={`img-${index}`}
-              ref={el => imageRefs.current[index] = el}
-              src={src} 
-              alt={`${project.title} - Image ${index + 1}`}
-              className={`w-full max-h-[80vh] object-cover absolute top-0 left-0 transition-opacity duration-200 ease-in-out ${
-                index === currentImageIndex ? 'opacity-100 z-10' : 'opacity-0 z-0'
-              } ${visibleImages[index] ? 'block' : 'hidden'}`}
-              style={{ 
+        <div className="relative mb-4 bg-white" style={{ minHeight: '400px', height: '60vh' }}>
+          {/* Mostrar apenas a imagem atual */}
+          <div className="w-full h-full overflow-hidden">
+            <OptimizedImage
+              src={project.images[currentImageIndex]}
+              alt={`${project.title} - Image ${currentImageIndex + 1}`}
+              className={`transition-opacity duration-300 ${isTransitioning ? 'opacity-95' : 'opacity-100'}`}
+              style={{
                 backgroundColor: 'white',
                 boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.05)'
               }}
+              onLoad={() => handleImageLoaded(currentImageIndex)}
+              // Fallback para caso de erro
+              fallbackSrc="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='3' width='18' height='18' rx='2' ry='2'%3E%3C/rect%3E%3Ccircle cx='8.5' cy='8.5' r='1.5'%3E%3C/circle%3E%3Cpolyline points='21 15 16 10 5 21'%3E%3C/polyline%3E%3C/svg%3E"
             />
-          ))}
-          
-          {allImagesPreloaded && project.images.length > 1 && (
+          </div>
+
+          {project.images.length > 1 && (
             <>
               <button 
                 onClick={prevImage} 
@@ -310,7 +225,7 @@ const ProjectDetail = () => {
           )}
         </div>
 
-        {allImagesPreloaded && project.images.length > 1 && (
+        {project.images.length > 1 && (
           <div className="flex justify-center items-center gap-2 mb-8">
             {project.images.map((_, index) => (
               <button 
@@ -326,22 +241,21 @@ const ProjectDetail = () => {
           </div>
         )}
 
-        {allImagesPreloaded && project.images.length > 1 && (
+        {project.images.length > 1 && (
           <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
             {project.images.map((image, index) => (
               <button 
                 key={index} 
                 onClick={() => goToImage(index)}
-                className={`overflow-hidden transition-all duration-300 ${
+                className={`overflow-hidden transition-all duration-300 aspect-video ${
                   index === currentImageIndex ? 'ring-2 ring-salmon' : ''
                 }`}
                 disabled={isTransitioning}
               >
-                <img 
-                  src={image} 
+                <OptimizedImage
+                  src={image}
                   alt={`${project.title} - Thumbnail ${index + 1}`}
-                  loading="lazy"
-                  className="w-full h-full object-cover aspect-video"
+                  className="w-full h-full"
                 />
               </button>
             ))}

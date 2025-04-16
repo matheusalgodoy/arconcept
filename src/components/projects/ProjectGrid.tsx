@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import OptimizedImage from '../ui/OptimizedImage';
 
 // Função para pré-carregar uma imagem
 const preloadImage = (src) => {
@@ -55,7 +56,7 @@ const projects = [
     title: 'Zen Passage',
     category: 'Residential',
     images: [
-      '/images/2.1.png',
+      '/images/2.1.jpg',
       '/images/2.2.jpg',
     ],
     year: 2025,
@@ -65,8 +66,8 @@ const projects = [
     title: 'Amber Horizon Kitchen',
     category: 'Residential',
     images: [
-      '/images/3.1.png',
-      '/images/3.2.png',
+      '/images/3.1.jpg',
+      '/images/3.2.jpg',
     ],
     year: 2025,
   },
@@ -75,9 +76,9 @@ const projects = [
     title: 'The Soft Gallery',
     category: 'Residential',
     images: [
-      '/images/4.1.png',
-      '/images/4.2.png',
-      '/images/4.3.png',
+      '/images/4.1.jpg',
+      '/images/4.2.jpg',
+      '/images/4.3.jpg',
     ],
     year: 2025,
   },
@@ -86,9 +87,9 @@ const projects = [
     title: 'Elevated Reflections',
     category: 'Public',
     images: [
-      '/images/5.1.png',
-      '/images/5.2.png',
-      '/images/5.3.png',
+      '/images/5.1.jpg',
+      '/images/5.2.jpg',
+      '/images/5.3.jpg',
     ],
     year: 2025,
   },
@@ -97,66 +98,14 @@ const projects = [
 const ProjectCard = ({ project }) => {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isTransitioning, setIsTransitioning] = useState(false);
-  const [imagesLoaded, setImagesLoaded] = useState([]);
-  const [allImagesPreloaded, setAllImagesPreloaded] = useState(false);
-  const [visibleImages, setVisibleImages] = useState({});
   const timeoutRef = useRef(null);
-  const imageRefs = useRef({});
 
-  // Pré-carregar todas as imagens do projeto quando o componente é montado
+  // Limpar timeouts quando o componente é desmontado
   useEffect(() => {
-    const cacheKey = `projectCard-${project.id}`;
-    
-    // Verifica se as imagens já estão no cache
-    if (projectImagesCache.has(cacheKey)) {
-      setImagesLoaded(project.images.map((_, index) => index));
-      setAllImagesPreloaded(true);
-      setVisibleImages({[currentImageIndex]: true});
-      return;
-    }
-    
-    const preloadAllImages = async () => {
-      try {
-        // Preload all images in parallel
-        const preloadPromises = project.images.map((src, index) => 
-          preloadImage(src)
-            .then(img => {
-              // Atualiza imagens carregadas imediatamente
-              setImagesLoaded(prev => [...prev, index].sort());
-              return img;
-            })
-        );
-        
-        const loadedImages = await Promise.all(preloadPromises);
-        
-        // Armazena no cache global
-        projectImagesCache.set(cacheKey, loadedImages);
-        
-        setAllImagesPreloaded(true);
-        
-        // Setup initial visible state
-        setVisibleImages({[currentImageIndex]: true});
-      } catch (error) {
-        console.error('Erro ao pré-carregar imagens:', error);
-      }
-    };
-    
-    preloadAllImages();
-    
     return () => {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
     };
-  }, [project.images, project.id, currentImageIndex]);
-  
-  // Preparar a próxima imagem antes da transição
-  const prepareNextImage = (nextIndex) => {
-    if (nextIndex !== currentImageIndex) {
-      setVisibleImages(prev => ({
-        ...prev,
-        [nextIndex]: true,  // A próxima imagem já está visível, mas não exibida
-      }));
-    }
-  };
+  }, []);
 
   const changeImage = (newIndex, e) => {
     if (e) {
@@ -164,21 +113,14 @@ const ProjectCard = ({ project }) => {
       e.stopPropagation();
     }
     
-    if (isTransitioning || !allImagesPreloaded) return;
+    if (isTransitioning) return;
     
     setIsTransitioning(true);
+    setCurrentImageIndex(newIndex);
     
-    // Primeiro, garanta que a próxima imagem esteja pronta
-    prepareNextImage(newIndex);
-    
-    // Curto atraso para garantir que o React renderize a imagem oculta
-    setTimeout(() => {
-      setCurrentImageIndex(newIndex);
-      
-      timeoutRef.current = setTimeout(() => {
-        setIsTransitioning(false);
-      }, 200); // Transição ainda mais rápida
-    }, 50);
+    timeoutRef.current = setTimeout(() => {
+      setIsTransitioning(false);
+    }, 300);
   };
 
   const nextImage = (e) => {
@@ -191,36 +133,24 @@ const ProjectCard = ({ project }) => {
     changeImage(newIndex, e);
   };
 
-  const isImageLoaded = (index) => imagesLoaded.includes(index);
-
   return (
     <Link key={project.id} to={`/projects/${project.id}`} className="project-card">
-      <div className="overflow-hidden relative bg-white" style={{ minHeight: '240px' }}>
-        {/* Loader enquanto não estiver pronto */}
-        {!allImagesPreloaded && (
-          <div className="w-full h-full bg-gray-100 animate-pulse flex items-center justify-center">
-            <p className="text-gray-400">Carregando...</p>
-          </div>
-        )}
+      <div className="overflow-hidden relative bg-white" style={{ height: '280px' }}>
+        {/* Imagem otimizada */}
+        <OptimizedImage
+          src={project.images[currentImageIndex]}
+          alt={project.title}
+          className={`project-image w-full h-full transition-opacity duration-300 ${
+            isTransitioning ? 'opacity-95' : 'opacity-100'
+          }`}
+          style={{
+            backgroundColor: 'white',
+            boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.05)'
+          }}
+          fallbackSrc="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='3' width='18' height='18' rx='2' ry='2'%3E%3C/rect%3E%3Ccircle cx='8.5' cy='8.5' r='1.5'%3E%3C/circle%3E%3Cpolyline points='21 15 16 10 5 21'%3E%3C/polyline%3E%3C/svg%3E"
+        />
         
-        {/* Renderiza todas as imagens com posicionamento absoluto */}
-        {project.images.map((src, index) => (
-          <img 
-            key={`img-${index}`}
-            ref={el => imageRefs.current[index] = el}
-            src={src} 
-            alt={project.title} 
-            className={`project-image w-full h-full object-cover absolute top-0 left-0 transition-opacity duration-200 ease-in-out ${
-              index === currentImageIndex ? 'opacity-100 z-10' : 'opacity-0 z-0'
-            } ${visibleImages[index] ? 'block' : 'hidden'}`}
-            style={{
-              backgroundColor: 'white',
-              boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.05)'
-            }}
-          />
-        ))}
-        
-        {allImagesPreloaded && project.images.length > 1 && (
+        {project.images.length > 1 && (
           <>
             <button 
               onClick={prevImage} 
