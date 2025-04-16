@@ -11,6 +11,9 @@ const preloadImage = (src) => {
   });
 };
 
+// Cache global de imagens
+const projectImagesCache = new Map();
+
 /*  This is where you will add your projects
 for example:
 
@@ -41,9 +44,9 @@ const projects = [
     title: 'The Concrete Monolith',
     category: 'Residential',
     images: [
-      '/images/1.png',
-      '/images/2.png',
-      '/images/3.png',
+      '/images/1.jpg',
+      '/images/2.jpg',
+      '/images/3.jpg',
     ],
     year: 2025,
   },
@@ -53,7 +56,7 @@ const projects = [
     category: 'Residential',
     images: [
       '/images/2.1.png',
-      '/images/2.2.png',
+      '/images/2.2.jpg',
     ],
     year: 2025,
   },
@@ -95,34 +98,65 @@ const ProjectCard = ({ project }) => {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [imagesLoaded, setImagesLoaded] = useState([]);
+  const [allImagesPreloaded, setAllImagesPreloaded] = useState(false);
+  const [visibleImages, setVisibleImages] = useState({});
   const timeoutRef = useRef(null);
-  const imgRef = useRef(null);
+  const imageRefs = useRef({});
 
   // Pré-carregar todas as imagens do projeto quando o componente é montado
   useEffect(() => {
-    const preloadProjectImages = async () => {
+    const cacheKey = `projectCard-${project.id}`;
+    
+    // Verifica se as imagens já estão no cache
+    if (projectImagesCache.has(cacheKey)) {
+      setImagesLoaded(project.images.map((_, index) => index));
+      setAllImagesPreloaded(true);
+      setVisibleImages({[currentImageIndex]: true});
+      return;
+    }
+    
+    const preloadAllImages = async () => {
       try {
-        // Carrega a primeira imagem imediatamente
-        await preloadImage(project.images[0]);
-        setImagesLoaded(prev => [...prev, 0]);
-        
-        // Carrega as outras imagens em segundo plano
-        const otherImagesPromises = project.images.slice(1).map((src, idx) => 
-          preloadImage(src).then(() => setImagesLoaded(prev => [...prev, idx + 1]))
+        // Preload all images in parallel
+        const preloadPromises = project.images.map((src, index) => 
+          preloadImage(src)
+            .then(img => {
+              // Atualiza imagens carregadas imediatamente
+              setImagesLoaded(prev => [...prev, index].sort());
+              return img;
+            })
         );
         
-        await Promise.all(otherImagesPromises);
+        const loadedImages = await Promise.all(preloadPromises);
+        
+        // Armazena no cache global
+        projectImagesCache.set(cacheKey, loadedImages);
+        
+        setAllImagesPreloaded(true);
+        
+        // Setup initial visible state
+        setVisibleImages({[currentImageIndex]: true});
       } catch (error) {
         console.error('Erro ao pré-carregar imagens:', error);
       }
     };
     
-    preloadProjectImages();
+    preloadAllImages();
     
     return () => {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
     };
-  }, [project.images]);
+  }, [project.images, project.id, currentImageIndex]);
+  
+  // Preparar a próxima imagem antes da transição
+  const prepareNextImage = (nextIndex) => {
+    if (nextIndex !== currentImageIndex) {
+      setVisibleImages(prev => ({
+        ...prev,
+        [nextIndex]: true,  // A próxima imagem já está visível, mas não exibida
+      }));
+    }
+  };
 
   const changeImage = (newIndex, e) => {
     if (e) {
@@ -130,14 +164,21 @@ const ProjectCard = ({ project }) => {
       e.stopPropagation();
     }
     
-    if (isTransitioning) return;
+    if (isTransitioning || !allImagesPreloaded) return;
     
     setIsTransitioning(true);
-    setCurrentImageIndex(newIndex);
     
-    timeoutRef.current = setTimeout(() => {
-      setIsTransitioning(false);
-    }, 300); // Reduzido para 300ms para uma transição mais rápida
+    // Primeiro, garanta que a próxima imagem esteja pronta
+    prepareNextImage(newIndex);
+    
+    // Curto atraso para garantir que o React renderize a imagem oculta
+    setTimeout(() => {
+      setCurrentImageIndex(newIndex);
+      
+      timeoutRef.current = setTimeout(() => {
+        setIsTransitioning(false);
+      }, 200); // Transição ainda mais rápida
+    }, 50);
   };
 
   const nextImage = (e) => {
@@ -155,31 +196,35 @@ const ProjectCard = ({ project }) => {
   return (
     <Link key={project.id} to={`/projects/${project.id}`} className="project-card">
       <div className="overflow-hidden relative bg-white" style={{ minHeight: '240px' }}>
-        {/* Imagem de baixa qualidade ou placeholder enquanto carrega */}
-        {!isImageLoaded(currentImageIndex) && (
+        {/* Loader enquanto não estiver pronto */}
+        {!allImagesPreloaded && (
           <div className="w-full h-full bg-gray-100 animate-pulse flex items-center justify-center">
             <p className="text-gray-400">Carregando...</p>
           </div>
         )}
-        <img 
-          ref={imgRef}
-          key={currentImageIndex}
-          src={project.images[currentImageIndex]} 
-          alt={project.title} 
-          loading="lazy"
-          className={`project-image w-full h-full object-cover transition-opacity duration-300 ease-in-out ${
-            isTransitioning ? 'opacity-80' : 'opacity-100'
-          } ${isImageLoaded(currentImageIndex) ? 'visible' : 'invisible'}`}
-          style={{
-            backgroundColor: 'white',
-            boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.05)'
-          }}
-        />
-        {project.images.length > 1 && (
+        
+        {/* Renderiza todas as imagens com posicionamento absoluto */}
+        {project.images.map((src, index) => (
+          <img 
+            key={`img-${index}`}
+            ref={el => imageRefs.current[index] = el}
+            src={src} 
+            alt={project.title} 
+            className={`project-image w-full h-full object-cover absolute top-0 left-0 transition-opacity duration-200 ease-in-out ${
+              index === currentImageIndex ? 'opacity-100 z-10' : 'opacity-0 z-0'
+            } ${visibleImages[index] ? 'block' : 'hidden'}`}
+            style={{
+              backgroundColor: 'white',
+              boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.05)'
+            }}
+          />
+        ))}
+        
+        {allImagesPreloaded && project.images.length > 1 && (
           <>
             <button 
               onClick={prevImage} 
-              className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-white/70 hover:bg-white/90 rounded-full p-2 shadow-md transition-colors"
+              className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-white/70 hover:bg-white/90 rounded-full p-2 shadow-md transition-colors z-20"
               aria-label="Imagem anterior"
               disabled={isTransitioning}
             >
@@ -187,13 +232,13 @@ const ProjectCard = ({ project }) => {
             </button>
             <button 
               onClick={nextImage} 
-              className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-white/70 hover:bg-white/90 rounded-full p-2 shadow-md transition-colors"
+              className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-white/70 hover:bg-white/90 rounded-full p-2 shadow-md transition-colors z-20"
               aria-label="Próxima imagem"
               disabled={isTransitioning}
             >
               →
             </button>
-            <div className="absolute bottom-2 left-0 right-0 flex justify-center gap-1">
+            <div className="absolute bottom-2 left-0 right-0 flex justify-center gap-1 z-20">
               {project.images.map((_, index) => (
                 <span 
                   key={index} 
@@ -214,6 +259,19 @@ const ProjectCard = ({ project }) => {
     </Link>
   );
 };
+
+// Pré-carrega todos os projetos
+const preloadAllProjectImages = () => {
+  projects.forEach(project => {
+    project.images.forEach(src => {
+      const img = new Image();
+      img.src = src;
+    });
+  });
+};
+
+// Pré-carrega imagens assim que o componente é importado
+preloadAllProjectImages();
 
 const ProjectGrid = () => {
   return (

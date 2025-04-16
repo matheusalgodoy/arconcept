@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, Clock, MapPin, Ruler, ChevronLeft, ChevronRight } from 'lucide-react';
 
@@ -11,6 +11,9 @@ const preloadImage = (src) => {
     img.src = src;
   });
 };
+
+// Cache global de imagens
+const imageCache = new Map();
 
 // This would typically come from an API or database
 
@@ -46,9 +49,9 @@ const projectsData = [
     client: 'Private',
     description: 'A sculptural residence with expressive geometry and brutalist aesthetics, inspired by futuristic architectural language.',
     images: [
-      '/images/1.png',
-      '/images/2.png',
-      '/images/3.png'
+      '/images/1.jpg',
+      '/images/2.jpg',
+      '/images/3.jpg'
     ]
   },
   {
@@ -61,7 +64,7 @@ const projectsData = [
     description: 'A serene entrance that blends raw materials with natural greenery and a modern atmosphere of calm.',
     images: [
       '/images/2.1.png',
-      '/images/2.2.png',
+      '/images/2.2.jpg',
     ]
   },
   {
@@ -110,66 +113,100 @@ const projectsData = [
 const ProjectDetail = () => {
   const { id } = useParams<{ id: string }>();
   const projectId = parseInt(id || '1');
+  const project = projectsData.find(p => p.id === projectId);
+  
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [imagesLoaded, setImagesLoaded] = useState([]);
-  const [nextImagePreloaded, setNextImagePreloaded] = useState(false);
+  const [allImagesPreloaded, setAllImagesPreloaded] = useState(false);
+  const [visibleImages, setVisibleImages] = useState({});
   const timeoutRef = useRef(null);
-  const imgRef = useRef(null);
+  const imageRefs = useRef({});
   
-  const project = projectsData.find(p => p.id === projectId);
-  
-  // Pré-carregar todas as imagens do projeto quando o componente é montado
+  // Pré-carregar todas as imagens do projeto imediatamente
   useEffect(() => {
     if (!project) return;
     
-    const preloadProjectImages = async () => {
+    const cacheKey = `project-${project.id}`;
+    
+    // Verifica se as imagens já estão no cache
+    if (imageCache.has(cacheKey)) {
+      setImagesLoaded(project.images.map((_, index) => index));
+      setAllImagesPreloaded(true);
+      return;
+    }
+    
+    const preloadAllImages = async () => {
       try {
-        // Carrega a primeira imagem imediatamente
-        await preloadImage(project.images[0]);
-        setImagesLoaded(prev => [...prev, 0]);
-        
-        // Carrega as outras imagens em segundo plano
-        const otherImagesPromises = project.images.slice(1).map((src, idx) => 
-          preloadImage(src).then(() => setImagesLoaded(prev => [...prev, idx + 1]))
+        // Preload all images in parallel
+        const preloadPromises = project.images.map((src, index) => 
+          preloadImage(src)
+            .then(img => {
+              // Atualiza imagens carregadas imediatamente
+              setImagesLoaded(prev => [...prev, index].sort());
+              return img;
+            })
         );
         
-        await Promise.all(otherImagesPromises);
+        const loadedImages = await Promise.all(preloadPromises);
+        
+        // Armazena no cache global
+        imageCache.set(cacheKey, loadedImages);
+        
+        setAllImagesPreloaded(true);
+        
+        // Setup initial visible state for first image
+        setVisibleImages({[currentImageIndex]: true});
       } catch (error) {
         console.error('Erro ao pré-carregar imagens:', error);
       }
     };
     
-    preloadProjectImages();
+    preloadAllImages();
     
     return () => {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
     };
   }, [project]);
 
-  // Pré-carregar a próxima imagem quando a atual mudar
+  // Preparar a próxima imagem antes da transição
+  const prepareNextImage = (nextIndex) => {
+    if (nextIndex !== currentImageIndex) {
+      setVisibleImages(prev => ({
+        ...prev,
+        [nextIndex]: true,  // A próxima imagem já está visível, mas não exibida
+      }));
+    }
+  };
+  
+  // Preparar todas as imagens para navegação rápida
   useEffect(() => {
-    if (!project || project.images.length <= 1) return;
+    if (!project || !allImagesPreloaded) return;
     
-    const preloadNextImage = async () => {
-      setNextImagePreloaded(false);
-      const nextIndex = currentImageIndex === project.images.length - 1 ? 0 : currentImageIndex + 1;
-      await preloadImage(project.images[nextIndex]);
-      setNextImagePreloaded(true);
-    };
+    // Preparar também a próxima e a anterior imagem
+    const nextIndex = currentImageIndex === project.images.length - 1 ? 0 : currentImageIndex + 1;
+    const prevIndex = currentImageIndex === 0 ? project.images.length - 1 : currentImageIndex - 1;
     
-    preloadNextImage();
-  }, [currentImageIndex, project]);
+    prepareNextImage(nextIndex);
+    prepareNextImage(prevIndex);
+  }, [currentImageIndex, allImagesPreloaded, project]);
 
   const changeImage = (newIndex) => {
-    if (isTransitioning) return;
+    if (isTransitioning || !allImagesPreloaded) return;
     
     setIsTransitioning(true);
-    setCurrentImageIndex(newIndex);
     
-    timeoutRef.current = setTimeout(() => {
-      setIsTransitioning(false);
-    }, 300); // Reduzido para 300ms para uma transição mais rápida
+    // Primeiro, garanta que a próxima imagem esteja pronta
+    prepareNextImage(newIndex);
+    
+    // Curto atraso para garantir que o React renderize a imagem oculta
+    setTimeout(() => {
+      setCurrentImageIndex(newIndex);
+      
+      timeoutRef.current = setTimeout(() => {
+        setIsTransitioning(false);
+      }, 200); // Transição ainda mais rápida
+    }, 50);
   };
 
   const nextImage = () => {
@@ -227,31 +264,35 @@ const ProjectDetail = () => {
         </div>
         
         <div className="relative mb-4 bg-white overflow-hidden" style={{ minHeight: '400px' }}>
-          {/* Placeholder ou imagem de baixa qualidade enquanto carrega */}
-          {!isImageLoaded(currentImageIndex) && (
+          {/* Loader até que todas as imagens estejam pré-carregadas */}
+          {!allImagesPreloaded && (
             <div className="w-full h-full bg-gray-100 animate-pulse flex items-center justify-center" style={{ minHeight: '400px' }}>
-              <p className="text-gray-400">Carregando...</p>
+              <p className="text-gray-400">Carregando galeria...</p>
             </div>
           )}
-          <img 
-            ref={imgRef}
-            key={currentImageIndex}
-            src={project.images[currentImageIndex]} 
-            alt={`${project.title} - Image ${currentImageIndex + 1}`}
-            loading="lazy" 
-            className={`w-full max-h-[80vh] object-cover transition-opacity duration-300 ease-in-out ${
-              isTransitioning ? 'opacity-80' : 'opacity-100'
-            } ${isImageLoaded(currentImageIndex) ? 'visible' : 'invisible'}`}
-            style={{ 
-              backgroundColor: 'white',
-              boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.05)'
-            }}
-          />
-          {project.images.length > 1 && (
+          
+          {/* Renderiza todas as imagens, mas mantém apenas as necessárias visíveis */}
+          {project.images.map((src, index) => (
+            <img 
+              key={`img-${index}`}
+              ref={el => imageRefs.current[index] = el}
+              src={src} 
+              alt={`${project.title} - Image ${index + 1}`}
+              className={`w-full max-h-[80vh] object-cover absolute top-0 left-0 transition-opacity duration-200 ease-in-out ${
+                index === currentImageIndex ? 'opacity-100 z-10' : 'opacity-0 z-0'
+              } ${visibleImages[index] ? 'block' : 'hidden'}`}
+              style={{ 
+                backgroundColor: 'white',
+                boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.05)'
+              }}
+            />
+          ))}
+          
+          {allImagesPreloaded && project.images.length > 1 && (
             <>
               <button 
                 onClick={prevImage} 
-                className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-white/70 hover:bg-white/90 rounded-full p-3 shadow-md transition-colors"
+                className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-white/70 hover:bg-white/90 rounded-full p-3 shadow-md transition-colors z-20"
                 aria-label="Imagem anterior"
                 disabled={isTransitioning}
               >
@@ -259,7 +300,7 @@ const ProjectDetail = () => {
               </button>
               <button 
                 onClick={nextImage} 
-                className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-white/70 hover:bg-white/90 rounded-full p-3 shadow-md transition-colors"
+                className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-white/70 hover:bg-white/90 rounded-full p-3 shadow-md transition-colors z-20"
                 aria-label="Próxima imagem"
                 disabled={isTransitioning}
               >
@@ -269,7 +310,7 @@ const ProjectDetail = () => {
           )}
         </div>
 
-        {project.images.length > 1 && (
+        {allImagesPreloaded && project.images.length > 1 && (
           <div className="flex justify-center items-center gap-2 mb-8">
             {project.images.map((_, index) => (
               <button 
@@ -285,7 +326,7 @@ const ProjectDetail = () => {
           </div>
         )}
 
-        {project.images.length > 1 && (
+        {allImagesPreloaded && project.images.length > 1 && (
           <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
             {project.images.map((image, index) => (
               <button 

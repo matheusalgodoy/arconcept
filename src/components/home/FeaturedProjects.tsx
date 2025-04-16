@@ -7,19 +7,19 @@ const projects = [
     id: 1,
     title: 'The Concrete Monolith',
     category: 'Residential',
-    image: '/images/1.png',
+    image: '/images/1.jpg',
   },
   {
     id: 3,
     title: 'Amber Horizon Kitchen',
     category: 'Residential',
-    image: '/images/3.1.png',
+    image: '/images/3.1.jpg',
   },
   {
     id: 5,
     title: 'Zen Passage',
     category: 'Residential',
-    image: '/images/5.1.png',
+    image: '/images/5.1.jpg',
   },
 ];
 
