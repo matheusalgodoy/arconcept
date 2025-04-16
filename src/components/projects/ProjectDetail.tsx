@@ -3,13 +3,36 @@ import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, Clock, MapPin, Ruler, ChevronLeft, ChevronRight } from 'lucide-react';
 
 // This would typically come from an API or database
+
+/*
+example of a project:
+
+ {
+    id: 1,
+    title: 'EXAMPLE PROJECT',
+    category: 'Residential / Commercial / Institutional / etc ',
+    year: 2025,
+    location: 'Surrey, UK',
+    client: 'Private',
+    description: 'A sculptural residence with expressive geometry and brutalist aesthetics, inspired by futuristic architectural language.',
+    images: [
+      '/images/1.png',
+      '/images/2.png',
+      '/images/3.png'
+    ]
+  },
+
+it also has to be inside const projectsData = [
+
+*/
+
 const projectsData = [
   {
     id: 1,
     title: 'The Concrete Monolith',
     category: 'Residential',
     year: 2025,
-    location: 'Surrey, UK',
+    location: 'La Paz, MX',
     client: 'Private',
     description: 'A sculptural residence with expressive geometry and brutalist aesthetics, inspired by futuristic architectural language.',
     images: [
@@ -23,7 +46,7 @@ const projectsData = [
     title: 'Zen Passage',
     category: 'Residential',
     year: 2025,
-    location: 'Surrey, UK',
+    location: 'La Paz, MX',
     client: 'Private',
     description: 'A serene entrance that blends raw materials with natural greenery and a modern atmosphere of calm.',
     images: [
@@ -36,7 +59,7 @@ const projectsData = [
     title: 'Amber Horizon Kitchen',
     category: 'Residential',
     year: 2025,
-    location: 'Surrey, UK',
+    location: 'La Paz, MX',
     client: 'Private',
     description: "An immersive kitchen bathed in golden light, where premium functionality meets warm, contemporary design.",
     images: [
@@ -49,7 +72,7 @@ const projectsData = [
     title: 'The Soft Gallery',
     category: 'Residential',
     year: 2025,
-    location: 'Surrey, UK',
+    location: 'La Paz, MX',
     client: 'Private',
     description: "A luxurious living space with gallery-style design, where every texture and form is crafted to offer art, relaxation, and sophistication.",
     images: [
@@ -63,7 +86,7 @@ const projectsData = [
     title: 'Elevated Reflections',
     category: 'Public',
     year: 2025,
-    location: 'Surrey, UK',
+    location: 'La Paz, MX',
     client: 'Private',
     description: "An elevated and elegant architectural proposal with sculptural presence and modern lines that reflect both light and surroundings.",
     images: [

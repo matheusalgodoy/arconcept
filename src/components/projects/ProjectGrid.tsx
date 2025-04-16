@@ -1,6 +1,32 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 
+
+
+/*  This is where you will add your projects
+for example:
+
+{
+    id: 1,
+    title: 'EXAMPLE PROJECT',
+    category: 'Residential / Commercial / Institutional / etc ',
+    images: [
+      '/images/1.png',
+      '/images/2.png',
+      '/images/3.png',
+    ],
+    year: 2025,
+  },
+
+
+  You can add as many projects as you want, and they will all be displayed in the project grid.
+
+remembering that the projects must be inside the "const projects = [
+
+and to appear in the details, and to appear in the details, you go to ProjectDetail.tsx
+
+*/
+
 const projects = [
   {
     id: 1,
