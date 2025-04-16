@@ -1,10 +1,13 @@
-
 import React from 'react';
 import MainLayout from '@/components/layout/MainLayout';
 import ContactForm from '@/components/contact/ContactForm';
 import { Mail, MapPin, Phone, Instagram, Linkedin } from 'lucide-react';
+import InteractiveMap from '@/components/contact/InteractiveMap';
 
 const Contact = () => {
+  // Coordenadas para La Paz, BCS, México
+  const laPazCoordinates: [number, number] = [24.1426, -110.3127];
+  
   return (
     <MainLayout>
       <div className="pt-32 pb-24">
@@ -57,10 +60,11 @@ const Contact = () => {
           </div>
           
           <div className="w-full h-[400px] bg-grey-light">
-            {/* A map would go here - using a placeholder for now */}
-            <div className="w-full h-full flex items-center justify-center">
-              <p className="text-grey-elegant/50">Interactive map would be displayed here</p>
-            </div>
+            <InteractiveMap 
+              position={laPazCoordinates} 
+              popupText="AR Concept Studio - La Paz, BCS" 
+              zoom={14}
+            />
           </div>
         </div>
       </div>
