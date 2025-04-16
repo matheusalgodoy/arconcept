@@ -2,6 +2,16 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, Clock, MapPin, Ruler, ChevronLeft, ChevronRight } from 'lucide-react';
 
+// Função para pré-carregar uma imagem
+const preloadImage = (src) => {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = src;
+  });
+};
+
 // This would typically come from an API or database
 
 /*
@@ -95,18 +105,6 @@ const projectsData = [
       '/images/5.3.png',
     ]
   },
-
-
-
-
-
-
-
-
-
-
-
-
 ];
 
 const ProjectDetail = () => {
@@ -114,15 +112,54 @@ const ProjectDetail = () => {
   const projectId = parseInt(id || '1');
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isTransitioning, setIsTransitioning] = useState(false);
+  const [imagesLoaded, setImagesLoaded] = useState([]);
+  const [nextImagePreloaded, setNextImagePreloaded] = useState(false);
   const timeoutRef = useRef(null);
+  const imgRef = useRef(null);
   
   const project = projectsData.find(p => p.id === projectId);
   
+  // Pré-carregar todas as imagens do projeto quando o componente é montado
   useEffect(() => {
+    if (!project) return;
+    
+    const preloadProjectImages = async () => {
+      try {
+        // Carrega a primeira imagem imediatamente
+        await preloadImage(project.images[0]);
+        setImagesLoaded(prev => [...prev, 0]);
+        
+        // Carrega as outras imagens em segundo plano
+        const otherImagesPromises = project.images.slice(1).map((src, idx) => 
+          preloadImage(src).then(() => setImagesLoaded(prev => [...prev, idx + 1]))
+        );
+        
+        await Promise.all(otherImagesPromises);
+      } catch (error) {
+        console.error('Erro ao pré-carregar imagens:', error);
+      }
+    };
+    
+    preloadProjectImages();
+    
     return () => {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
     };
-  }, []);
+  }, [project]);
+
+  // Pré-carregar a próxima imagem quando a atual mudar
+  useEffect(() => {
+    if (!project || project.images.length <= 1) return;
+    
+    const preloadNextImage = async () => {
+      setNextImagePreloaded(false);
+      const nextIndex = currentImageIndex === project.images.length - 1 ? 0 : currentImageIndex + 1;
+      await preloadImage(project.images[nextIndex]);
+      setNextImagePreloaded(true);
+    };
+    
+    preloadNextImage();
+  }, [currentImageIndex, project]);
 
   const changeImage = (newIndex) => {
     if (isTransitioning) return;
@@ -132,7 +169,7 @@ const ProjectDetail = () => {
     
     timeoutRef.current = setTimeout(() => {
       setIsTransitioning(false);
-    }, 500); // Match this with the CSS transition duration
+    }, 300); // Reduzido para 300ms para uma transição mais rápida
   };
 
   const nextImage = () => {
@@ -148,6 +185,8 @@ const ProjectDetail = () => {
   const goToImage = (index) => {
     changeImage(index);
   };
+
+  const isImageLoaded = (index) => imagesLoaded.includes(index);
 
   if (!project) {
     return (
@@ -188,11 +227,21 @@ const ProjectDetail = () => {
         </div>
         
         <div className="relative mb-4 bg-white overflow-hidden" style={{ minHeight: '400px' }}>
+          {/* Placeholder ou imagem de baixa qualidade enquanto carrega */}
+          {!isImageLoaded(currentImageIndex) && (
+            <div className="w-full h-full bg-gray-100 animate-pulse flex items-center justify-center" style={{ minHeight: '400px' }}>
+              <p className="text-gray-400">Carregando...</p>
+            </div>
+          )}
           <img 
+            ref={imgRef}
             key={currentImageIndex}
             src={project.images[currentImageIndex]} 
-            alt={`${project.title} - Image ${currentImageIndex + 1}`} 
-            className={`w-full max-h-[80vh] object-cover transition-opacity duration-500 ease-in-out ${isTransitioning ? 'opacity-80' : 'opacity-100'}`}
+            alt={`${project.title} - Image ${currentImageIndex + 1}`}
+            loading="lazy" 
+            className={`w-full max-h-[80vh] object-cover transition-opacity duration-300 ease-in-out ${
+              isTransitioning ? 'opacity-80' : 'opacity-100'
+            } ${isImageLoaded(currentImageIndex) ? 'visible' : 'invisible'}`}
             style={{ 
               backgroundColor: 'white',
               boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.05)'
@@ -249,8 +298,9 @@ const ProjectDetail = () => {
               >
                 <img 
                   src={image} 
-                  alt={`${project.title} - Thumbnail ${index + 1}`} 
-                  className="w-full aspect-square object-cover"
+                  alt={`${project.title} - Thumbnail ${index + 1}`}
+                  loading="lazy"
+                  className="w-full h-full object-cover aspect-video"
                 />
               </button>
             ))}

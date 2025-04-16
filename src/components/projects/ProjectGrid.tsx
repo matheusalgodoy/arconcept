@@ -1,7 +1,15 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 
-
+// Função para pré-carregar uma imagem
+const preloadImage = (src) => {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = src;
+  });
+};
 
 /*  This is where you will add your projects
 for example:
@@ -86,13 +94,35 @@ const projects = [
 const ProjectCard = ({ project }) => {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isTransitioning, setIsTransitioning] = useState(false);
+  const [imagesLoaded, setImagesLoaded] = useState([]);
   const timeoutRef = useRef(null);
+  const imgRef = useRef(null);
 
+  // Pré-carregar todas as imagens do projeto quando o componente é montado
   useEffect(() => {
+    const preloadProjectImages = async () => {
+      try {
+        // Carrega a primeira imagem imediatamente
+        await preloadImage(project.images[0]);
+        setImagesLoaded(prev => [...prev, 0]);
+        
+        // Carrega as outras imagens em segundo plano
+        const otherImagesPromises = project.images.slice(1).map((src, idx) => 
+          preloadImage(src).then(() => setImagesLoaded(prev => [...prev, idx + 1]))
+        );
+        
+        await Promise.all(otherImagesPromises);
+      } catch (error) {
+        console.error('Erro ao pré-carregar imagens:', error);
+      }
+    };
+    
+    preloadProjectImages();
+    
     return () => {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
     };
-  }, []);
+  }, [project.images]);
 
   const changeImage = (newIndex, e) => {
     if (e) {
@@ -107,7 +137,7 @@ const ProjectCard = ({ project }) => {
     
     timeoutRef.current = setTimeout(() => {
       setIsTransitioning(false);
-    }, 500); // Match this with the CSS transition duration
+    }, 300); // Reduzido para 300ms para uma transição mais rápida
   };
 
   const nextImage = (e) => {
@@ -120,14 +150,26 @@ const ProjectCard = ({ project }) => {
     changeImage(newIndex, e);
   };
 
+  const isImageLoaded = (index) => imagesLoaded.includes(index);
+
   return (
     <Link key={project.id} to={`/projects/${project.id}`} className="project-card">
       <div className="overflow-hidden relative bg-white" style={{ minHeight: '240px' }}>
+        {/* Imagem de baixa qualidade ou placeholder enquanto carrega */}
+        {!isImageLoaded(currentImageIndex) && (
+          <div className="w-full h-full bg-gray-100 animate-pulse flex items-center justify-center">
+            <p className="text-gray-400">Carregando...</p>
+          </div>
+        )}
         <img 
+          ref={imgRef}
           key={currentImageIndex}
           src={project.images[currentImageIndex]} 
           alt={project.title} 
-          className={`project-image w-full h-full object-cover transition-opacity duration-500 ease-in-out ${isTransitioning ? 'opacity-80' : 'opacity-100'}`}
+          loading="lazy"
+          className={`project-image w-full h-full object-cover transition-opacity duration-300 ease-in-out ${
+            isTransitioning ? 'opacity-80' : 'opacity-100'
+          } ${isImageLoaded(currentImageIndex) ? 'visible' : 'invisible'}`}
           style={{
             backgroundColor: 'white',
             boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.05)'
